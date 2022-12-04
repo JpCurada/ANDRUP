@@ -7,14 +7,26 @@ import collections
 import math as m
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+import gspread as gs
+
 # import xlsxwriter
 # from io import BytesIO
 
 st.set_page_config(
    page_title="ANDRUP",
    page_icon=":bar_chart",
-   layout="wide"
 #    initial_sidebar_state="expanded",
+)
+
+st.write(
+    """
+    <style>
+    [data-testid="stMetricDelta"] svg {
+        display: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 plt.style.use('ggplot')
@@ -32,37 +44,53 @@ with st.expander('How to Use?'):
         be random.
     """)
 
-st.text('(May video tutorial na lalabas dito, gagawin natin yon soon)')
+st.subheader('DATA ANALYSIS')
 
-st.subheader('Features')
-
-feature1, feature2, feature3, feature4, feature5 = st.tabs(['[1] Insert Data','[2] Normal Probability Distribution Table','[3] Z-Score Mapping','[4] Percentile Ranking', 'About Us'])
+feature1, feature2, feature3, feature4 = st.tabs(['[1] Insert Data','[2] Normal Probability Distribution Table','[3] Z-Score Mapping','[4] Ranking'])
 
 with feature1:
    st.header("Insert Data")
-   data_type = st.radio("How will you insert your data?",('Excel', 'Google Sheets', 'Input separated by space', 'Input separated by comma'))
+   data_type = st.radio("How will you insert your data?",('Excel', 'Google Sheets', 'Values separated by space', 'Values separated by comma'))
 
    def acquire_data(data_type):
 
         if data_type == 'Excel':
-            st.write('Excel sample')
+            st.subheader('Microsoft Excel')
             try:
-                uploaded_excel_file = st.file_uploader("Choose an Excel file", accept_multiple_files=False)
+                uploaded_excel_file = st.file_uploader("Choose an MS Excel file", accept_multiple_files=False)
                 bytes_data = uploaded_excel_file.read()
-                st.write("filename:", uploaded_excel_file.name)
+                st.write("Filename: ", uploaded_excel_file.name)
                 df_excel = pd.read_excel(bytes_data)
                 print(df_excel)
                 st.dataframe(df_excel)
-                data = np.array([round(X,2) for X in df_excel[df_excel.columns[1]].values])
+                data = np.array([X for X in df_excel[df_excel.columns[1]].values])
                 return data
             except AttributeError:
                 pass  
 
         elif data_type == 'Google Sheets':
-            st.write("Google Sheet Sample")
-            pass
+            st.subheader('Google Sheet')
+            gc = gs.service_account(filename='youtube-api-project-364001-624c994c3ce4.json')
+            try:
+                gsheet_link = st.text_input('Google Sheet Link')
+                sh = gc.open_by_url(gsheet_link)
+                ws_name = st.text_input('Worksheet Name')
+                ws = sh.worksheet(ws_name)
+                df_gs = pd.DataFrame(ws.get_all_records())
+                st.dataframe(df_gs)
+                num_columns = [col for col in df_gs.columns if df_gs[col].dtype == 'float64' or df_gs[col].dtype == 'int64']
+                chosen_column = st.selectbox('Choose the column that you want to analyze', tuple(num_columns))
+                data = pd.DataFrame(df_gs[chosen_column])
+                st.code(np.array(data[chosen_column].values))
+                return data[chosen_column].values
+            except gs.NoValidUrlKeyFound:
+                st.error('Enter a valid URL')
+            except gs.WorksheetNotFound:
+                st.error('Enter a worksheet name found in your provided google sheet')
+            except (AttributeError, ValueError):
+                pass
 
-        elif data_type == 'Input separated by space':
+        elif data_type == 'Values separated by space':
             st.write("Separate the number by a space(  ) to be readable")
             st.caption('Example: 50 51.20 53 54 55.55 57 58 59 60')
             try:
@@ -78,7 +106,7 @@ with feature1:
                 pass
 
 
-        elif data_type == 'Input separated by comma':
+        elif data_type == 'Values separated by comma':
             st.write("Separate the number by a comma ( , ) to be readable")
             st.caption('Example: 51.50,52.50,53.50,54.50,54,57,59,61,62.30')
             try:
@@ -143,45 +171,45 @@ with feature2:
         return df, mean, variance, st_dev
     
     try:
-        ndtcol1, ndtcol2= st.columns(2)
-        with ndtcol1:
-            st.header("Normal Probability Distribution Table")
-            nd_table, mean, variance, st_dev = create_distribution_table(data)
-            st.dataframe(nd_table.style.format({'X': '{:.2f}', 'X*P(X)': '{:.2f}', 'P(X)' : '{:.2f}', 'X-μ' : '{:.2f}', '(X-μ)^2': '{:.2f}', '(X-μ)^2*P(X)' : '{:.2f}'}))
-            @st.cache
-            def convert_df(nd_table):
-                # IMPORTANT: Cache the conversion to prevent computation on every rerun
-                return nd_table.to_csv().encode('utf-8')
+        st.header("Normal Probability Distribution Table")
+        nd_table, mean, variance, st_dev = create_distribution_table(data)
+        st.dataframe(nd_table.style.format({'X': '{:.2f}', 'X*P(X)': '{:.2f}', 'P(X)' : '{:.2f}', 'X-μ' : '{:.2f}', '(X-μ)^2': '{:.2f}', '(X-μ)^2*P(X)' : '{:.2f}'}))
+        @st.cache
+        def convert_df(nd_table):
+            # IMPORTANT: Cache the conversion to prevent computation on every rerun
+            return nd_table.to_csv().encode('utf-8')
 
-            csv = convert_df(nd_table)
+        csv = convert_df(nd_table)
 
-            st.download_button(
-                label="Download data as CSV",
-                data=csv,
-                file_name='normal_dist_table.csv',
-                mime='text/csv',
-            )
-        
-        with ndtcol2:
-            st.header('Mean, Variance and Standard Deviation')
-            st.metric("Mean", f"{mean}")
-            st.write('''
-                    _The mean is the central tendency of the normal distribution. It defines the location of the peak for the bell curve._
-                    ''')
-            st.metric("Variance", f"{variance}")
-            st.write('''
-                    _The variance measures the average degree to which each point differs from the mean. While standard deviation is the square root of the variance, variance is the average of all data points within a group._
-                    ''')
-            st.metric("Standard Deviation", f"{st_dev}")
-            st.write('''
-                    _The standard deviation is the measure of how spread out a normally distributed set of data is. It is a statistic that tells you how closely all of the examples are gathered around the mean in a data set._
-                    ''')
+        st.download_button(
+            label="Download data as CSV",
+            data=csv,
+            file_name='normal_dist_table.csv',
+            mime='text/csv',
+        )
+    
+        st.header('Mean, Variance and Standard Deviation')
+        st.metric("Mean", f"{round(mean,2)}")
+        st.caption(f"{mean}")
+        st.write('''
+                _The mean is the central tendency of the normal distribution. It defines the location of the peak for the bell curve._
+                ''')
+        st.metric("Mean", f"{round(variance,2)}")
+        st.caption(f"{variance}")
+        st.write('''
+                _The variance measures the average degree to which each point differs from the mean. While standard deviation is the square root of the variance, variance is the average of all data points within a group._
+                ''')
+        st.metric("Mean", f"{round(st_dev,2)}")
+        st.caption(f"{st_dev}")
+        st.write('''
+                _The standard deviation is the measure of how spread out a normally distributed set of data is. It is a statistic that tells you how closely all of the examples are gathered around the mean in a data set._
+                ''')
 
     except (TypeError, NameError) as e:
         pass
 
 with feature3:
-    st.header("Data Analysis")
+    st.header(" Visual Graphs")
     st.write('''
             _The value of the **z-score** tells you how many standard deviations you are away from the mean. If a z-score is equal to 0, it is on the mean. A positive z-score indicates the raw score is higher than the mean._ 
             ''')
@@ -189,36 +217,37 @@ with feature3:
     def get_z_deets(X, mean, st_dev):
         
         # Determine the value of z-score
-        z = round((X - mean) / st_dev,2)
+        z = (X - mean) / st_dev
         
         # area of z-score value based on the z-table
-        z_area_based_on_z_s_table = abs(round(0.50 - stats.norm.cdf(z),4)) 
-        return z, z_area_based_on_z_s_table
+        z_area_based_on_z_s_table = abs(0.50 - stats.norm.cdf(round(z,2)))
+        
+        return round(z,2), round(z_area_based_on_z_s_table,4)
 
     def get_z_left_right_deets(X_given, z, mean):
         if X_given > mean:
            # get the left side's area of z-score value on normal curve 
-            z_left_area = round(0.5000 + z,4)
-            z_l_area_percent = round(z_left_area * 100,2)
+            z_left_area = 0.5000 + z
+            z_l_area_percent = z_left_area * 100
             # get the rides side's area of z-score value on normal curve
-            z_right_area = round(0.5000 - z,4)
-            z_r_area_percent = round(z_right_area * 100,2)
+            z_right_area = 0.5000 - z
+            z_r_area_percent = z_right_area * 100
             return z_left_area, z_l_area_percent,  z_right_area,  z_r_area_percent
         elif X_given < mean:
             # get the left side's area of z-score value on normal curve 
-            z_left_area = round(0.5000 - z,4)
-            z_l_area_percent = round(z_left_area * 100,2)
+            z_left_area = 0.5000 - z
+            z_l_area_percent = z_left_area * 100
             # get the rides side's area of z-score value on normal curve
-            z_right_area = round(0.5000 + z,4)
-            z_r_area_percent = round(z_right_area * 100,2)
+            z_right_area = 0.5000 + z
+            z_r_area_percent = z_right_area * 100
             return z_left_area, z_l_area_percent,  z_right_area,  z_r_area_percent
         else:
             # get the left side's area of z-score value on normal curve 
-            z_left_area = round(0.5000 - z,4)
-            z_l_area_percent = round(z_left_area * 100,2)
+            z_left_area = 0.5000 - z
+            z_l_area_percent = z_left_area * 100
             # get the rides side's area of z-score value on normal curve
-            z_right_area = round(0.5000 + z,4)
-            z_r_area_percent = round(z_right_area * 100,2)
+            z_right_area = 0.5000 + z
+            z_r_area_percent = z_right_area * 100
             return z_left_area, z_l_area_percent,  z_right_area,  z_r_area_percent
 
     def draw_z_score(x, cond, s_mean, s_st_dev, title):
@@ -247,66 +276,57 @@ with feature3:
                 z, z_area_based_on_z_s_table = get_z_deets(X_given, mean, st_dev)
                 zcol1, zcol2, zcol3= st.columns(3)
                 with zcol1:
-                    st.metric("X Value",f"{X_given}")
+                    st.metric("X Value",f"{round(X_given,2)}", f"{X_given}", delta_color='normal')
+
                 with zcol2:
-                    st.metric("Z Score", f"z = {z}")
+                    st.metric("Z Score", f"z = {round(z,2)}", f"{z}", delta_color='normal')
+             
                 with zcol3:
-                    st.metric("Area", f"{z_area_based_on_z_s_table}")
+                    st.metric("Area", f"{round(z_area_based_on_z_s_table,4)}", f"{z_area_based_on_z_s_table}", delta_color='normal')
+   
 
                 z_left_area, z_l_area_percent,  z_right_area,  z_r_area_percent = get_z_left_right_deets(X_given, z_area_based_on_z_s_table, mean)
                 standard_x_norm = np.arange(-3,3,0.001)
 
-                st.markdown('---')
                 left_z, right_z = st.columns(2)
 
                 left_subheader, right_subheader = st.columns(2)
-                left_subheader.subheader("Left side of the Z-score's details")
-                right_subheader.subheader("Right side of the Z-score's details")
+                left_subheader.subheader("Left side of the Z-score")
+                right_subheader.subheader("Right side of the Z-score")
 
                 left_area, left_percent, right_area, right_percent = st.columns(4)
-                left_area.metric("Left Side Area", f"{z_left_area}")
-                left_percent.metric("Area Percentage", f"{z_l_area_percent}%")
-                right_area.metric("Right Side Area", f"{z_right_area}")
-                right_percent.metric("Area Percentage", f"{z_r_area_percent}%")
+                left_area.metric("Left Side Area", f"{round(z_left_area,4)}")
+                left_percent.metric("Area Percentage", f"{round(z_l_area_percent,2)}%")
+                right_area.metric("Right Side Area", f"{round(z_right_area,4)}")
+                right_percent.metric("Area Percentage", f"{round(z_r_area_percent,2)}%")
 
                 left_g, right_g = st.columns(2)
                 with left_g:
-                    # left_area_col, left_a_percentage_col = st.columns(2)
-                    # left_area_col.metric("Left Side Area", f"{z_left_area}")
-                    # left_a_percentage_col.metric("Area Percentage", f"{z_l_area_percent}%")
                     z_left_graph = draw_z_score(standard_x_norm, standard_x_norm<z, 0, 1, f'z < {z}')
                     st.pyplot(fig=z_left_graph )
 
                 with right_g:
-                    # right_area_col, right_a_percentage_col = st.columns(2)
-                    # right_area_col.metric("Right Side Area", f"{z_right_area}")
-                    # right_a_percentage_col.metric("Area Percentage", f"{z_r_area_percent}%")
                     z_right_graph = draw_z_score(standard_x_norm, standard_x_norm>z, 0, 1, f'z > {z}')
                     st.pyplot(fig=z_right_graph )
 
-                z_graph, analysis = st.columns(2)
-                with z_graph:
-                    st.subheader("Z-score's details with respect to mean")
+                st.subheader("Z-score's details with respect to mean")
 
-                    def sda_respect_to_mean(z):
-                        if z < 0:
-                            z0 = z
-                            z1 = 0
-                            title = f'0 < z < {z}'
-                        
-                        elif z > 0:
-                            z1 = z
-                            z0 = 0
-                            title = f'0 > z > {z}'
+                def sda_respect_to_mean(z):
+                    if z < 0:
+                        z0 = z
+                        z1 = 0
+                        title = f'0 < z < {z}'
+                    
+                    elif z > 0:
+                        z1 = z
+                        z0 = 0
+                        title = f'0 > z > {z}'
 
-                        return z0, z1, title
+                    return z0, z1, title
 
-                    z0, z1, title =  sda_respect_to_mean(z)
-                    z_mean_graph = draw_z_score(standard_x_norm, (z0 < standard_x_norm) & (standard_x_norm < z1), 0, 1, title=title)
-                    st.pyplot(fig=z_mean_graph)
-                with analysis:
-                    st.subheader('Interpretation')
-
+                z0, z1, title =  sda_respect_to_mean(z)
+                z_mean_graph = draw_z_score(standard_x_norm, (z0 < standard_x_norm) & (standard_x_norm < z1), 0, 1, title=title)
+                st.pyplot(fig=z_mean_graph)
             else:
                 st.caption('Enter a data point')
 
@@ -350,9 +370,21 @@ with feature3:
 
                 z_0, z_1, title_g =  dda_z(dp1_z_score, dp2_z_score)
 
+                def DPs_area(dp1_z_score, dp2_z_score, dp1_z_area, dp2_z_area):
+                    DPs_list = [dp1_z_area, dp2_z_area] 
+                    if dp1_z_score > 0 and dp2_z_score > 0:
+                        shaded_area = max(DPs_list) - min(DPs_list)
+                    elif dp1_z_score < 0 and dp2_z_score < 0:
+                        shaded_area = max(DPs_list) - min(DPs_list)
+                    else:
+                        shaded_area = dp1_z_area + dp2_z_area
+                    return shaded_area
+
+                shaded_area = DPs_area(dp1_z_score, dp2_z_score, dp1_z_area, dp2_z_area)
+
                 z_area_graph, z_area_perccentage = st.columns(2)
-                z_area_graph.metric("Area", f'{dp1_z_area + dp2_z_area}')
-                z_area_perccentage.metric("Percentage", f'{round((dp1_z_area + dp2_z_area)*100,2)}%')
+                z_area_graph.metric("Area", f'{shaded_area}')
+                z_area_perccentage.metric("Percentage", f'{round((shaded_area)*100,2)}%')
 
                 z_between_graph = draw_z_score(standard_x_norm, (z_0 < standard_x_norm) & (standard_x_norm < z_1), 0, 1, title_g)
                 st.pyplot(fig=z_between_graph)
@@ -364,33 +396,28 @@ with feature3:
         pass
 
 with feature4:
-   st.header("Ranking Analysis")
+    try:
+        st.header("Ranking Analysis")
+        df_ranks = pd.DataFrame(data, columns=['Data'],dtype='float64')
+        df_ranks['Default Rank'] = df_ranks['Data'].rank(ascending=False)
+        df_ranks['Percentile Rank'] = df_ranks['Data'].rank(pct=True)
+        
+        def get_left_areas_rank(df_ranks, mean, st_dev):
+            norm_s_dist = []
+            for val in df_ranks['Data'].values:
+                z_scr, based_z_area = get_z_deets(val, mean, st_dev)
+                z_left_area = get_z_left_right_deets(val, based_z_area, mean)[0]
+                norm_s_dist.append(z_left_area)
+            return norm_s_dist
 
-with feature5:
-#     from PIL import Image
-#     from researchers import alf, jeson, bem, jp, sh, yv
-#     alf_img = Image.open('alf.png')
-#     jeson_img = Image.open('jeson.png')
-#     bem_img = Image.open('bem.png')
-#     jp_img = Image.open('jp.png')
-#     sh_img = Image.open('sh.png')
-#     yv_img = Image.open('yv.png')
+        norm_s_dist_list =  get_left_areas_rank(df_ranks, mean, st_dev)
 
-      st.header("Researchers")
-#     pic_alf, pic_jes, pic_bem, pic_jp, pic_yv,pic_sh= st.columns(6)
-#     with pic_alf:
-#         st.image(alf_img, caption='Alfredo L. Agulto III')
-#     with pic_jes:
-#         st.image(jeson_img, caption='Romnel Jesuron B. Burnot')
-#     with pic_bem:
-#         st.image(bem_img, caption='Bem Eiffel C. Castillo')
-#     with pic_jp:
-#         st.image(jp_img, caption='John Paul M. Curada')
-#     with pic_yv:
-#         st.image(yv_img, caption='Yvonne R. Mangulabnan')
-#     with pic_sh:
-#         st.image(sh_img, caption='Sharmaine Carl M. Perez')
+        df_ranks['Normal Probability Distribution Rank'] = np.array(norm_s_dist_list)
 
-    
+        df_ranks = df_ranks.sort_values(by=['Data'],ascending=False)
+
+        st.dataframe(df_ranks)
+    except NameError:
+        pass
 
 st.markdown('---')
