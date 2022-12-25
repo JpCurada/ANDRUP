@@ -30,8 +30,8 @@ st.markdown("""This web application can automatedly compute for the mean, varian
             standard normal distribution curve. ANDRUP also provides ranking analysis based on actual percentile rank and
             perccentile rank determined with normal distribution.
             
-            **This web application aims to lessen the time and burden users experienced when computing and analyzing with standard 
-            normal distribution.**
+            ***This web application aims to lessen the time and burden users experienced when computing and analyzing with standard 
+            normal distribution.***
             
             """)
 
