@@ -28,11 +28,8 @@ st.markdown("""This web application can automatedly compute for the mean, varian
             within the given MS excel Sheet, Google Sheet, or Inputted Values. ANDRUP will also determine the z-score,
             area, and probability percentage of given data points by a user within the dataset supported by a downloadable
             standard normal distribution curve. ANDRUP also provides ranking analysis based on actual percentile rank and
-            perccentile rank determined with normal distribution.
-            
-            This web application aims to lessen the time and burden users experienced when computing and analyzing with standard 
-            normal distribution.
-            
+            perccentile rank determined with normal distribution.This web application aims to lessen the time and burden users 
+            experienced when computing and analyzing with standard normal distribution.
             """)
 
 st.markdown('---')
