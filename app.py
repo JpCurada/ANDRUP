@@ -71,12 +71,12 @@ with st.container():
             st.write('''
                     _The mean is the central tendency of the normal distribution. It defines the location of the peak for the bell curve._
                     ''')
-            st.metric("Mean", f"{round(variance,2)}")
+            st.metric("Variance", f"{round(variance,2)}")
             st.caption(f"{variance}")
             st.write('''
                     _The variance measures the average degree to which each point differs from the mean. While standard deviation is the square root of the variance, variance is the average of all data points within a group._
                     ''')
-            st.metric("Mean", f"{round(st_dev,2)}")
+            st.metric("Standard Deviation", f"{round(st_dev,2)}")
             st.caption(f"{st_dev}")
             st.write('''
                     _The standard deviation is the measure of how spread out a normally distributed set of data is. It is a statistic that tells you how closely all of the examples are gathered around the mean in a data set._
