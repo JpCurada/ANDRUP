@@ -26,7 +26,7 @@ st.title('ANDRUP')
 st.header('Automated Normal Distribution Ranking Using Python ')
 st.markdown("""This web application can automatically compute the mean, variance, and standard deviation of data within the given MS excel Sheet, Google Sheets, or Inputted Values. ANDRUP will also determine the z-score, area, and probability percentage of given data points by a user within the dataset supported by a downloadable standard normal distribution curve. ANDRUP also provides ranking analysis based on actual percentile rank and percentile rank determined by the normal distribution model. This web application aims to lessen the time and burden when computing and analyzing with standard normal distribution.
             """)
-
+st.caption("""***Note: Change your theme to 'Dark' theme in settings for better visualization.***""")
 st.markdown('---')
 
 st.header("Insert Data")
